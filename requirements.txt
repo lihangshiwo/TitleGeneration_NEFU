@@ -1,0 +1,5 @@
+gevent == 1.3a1
+flask == 0.12.2
+transformers == 3.0.2
+tqdm
+numpy
