@@ -14,8 +14,8 @@ st.set_page_config(
     initial_sidebar_state="auto",
     layout="wide"
 )
-
-con = pymysql.connect(host="localhost", user="root", password="root", database="python", charset="utf8")
+con = pymysql.connect(host="rm-bp1an500l6pntj3f5vo.mysql.rds.aliyuncs.com", user="woshilihang", password="123456abc*", db="zhinengchuangzuo", port=3306, charset="utf8")
+ # con = pymysql.connect(host="localhost", user="root", password="root", database="python", charset="utf8")
 
 c = con.cursor()
 
@@ -92,22 +92,22 @@ def writer():
         start_message.write("生成完成，耗时{}s".format(end_time - start_time))
         for i, title in enumerate(titles):
             st.text_input("生成的标题为", title)
-    st.markdown(
-        """
-        ## 功能2：输入文章生成摘要
-        """
-    )
-
-    content1 = st.text_area("输入文章正文", max_chars=511)
-    if st.button("一键生成摘要"):
-        start_message = st.empty()
-        start_message.write("正在生成，请等待...")
-        start_time = time.time()
-        titles1 = predict_one_sample(model, tokenizer, device, args, content1)
-        end_time = time.time()
-        start_message.write("生成完成，耗时{}s".format(end_time - start_time))
-        for j, title in enumerate(titles1):
-            st.text_input("第{}个结果".format(j + 1), title)
+    # st.markdown(
+    #     """
+    #     ## 功能2：输入文章生成摘要
+    #     """
+    # )
+    #
+    # content1 = st.text_area("输入文章正文", max_chars=511)
+    # if st.button("一键生成摘要"):
+    #     start_message = st.empty()
+    #     start_message.write("正在生成，请等待...")
+    #     start_time = time.time()
+    #     titles1 = predict_one_sample(model, tokenizer, device, args, content1)
+    #     end_time = time.time()
+    #     start_message.write("生成完成，耗时{}s".format(end_time - start_time))
+    #     for j, title in enumerate(titles1):
+    #         st.text_input("第{}个结果".format(j + 1), title)
 
 
 def main():
@@ -168,9 +168,7 @@ def main():
         if denglu:
                 logged_user = login_user(username,password)
                 if logged_user:
-
                     st.session_state.count += 1
-
                     if st.session_state.count >= 1:
                         placeholder.empty()
                         st.sidebar.success("您已登录成功，您的用户名是 {}".format(username))
