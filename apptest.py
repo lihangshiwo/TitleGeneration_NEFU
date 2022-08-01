@@ -7,15 +7,17 @@ import os
 import torch
 import time
 from generate_title import predict_one_sample
+from textrank4zh import  TextRank4Sentence
+
 
 st.set_page_config(
-    page_title="æ™ºèƒ½åˆ›ä½œå¹³å°",
+    page_title="ÖÇÄÜ´´×÷Æ½Ì¨",
     page_icon=":computer:",
     initial_sidebar_state="auto",
     layout="wide"
 )
 con = pymysql.connect(host="rm-bp1an500l6pntj3f5vo.mysql.rds.aliyuncs.com", user="woshilihang", password="123456abc*", db="zhinengchuangzuo", port=3306, charset="utf8")
- # con = pymysql.connect(host="localhost", user="root", password="root", database="python", charset="utf8")
+#con = pymysql.connect(host="localhost", user="root", password="root", database="python", charset="utf8")
 
 c = con.cursor()
 
@@ -25,12 +27,12 @@ def create_usertable():
 def add_userdata(username, password):
 
     if c.execute('SELECT username FROM userstable WHERE username = %s',(username)):
-        st.warning("ç”¨æˆ·åå·²å­˜åœ¨ï¼Œè¯·æ›´æ¢ä¸€ä¸ªæ–°çš„ç”¨æˆ·åã€‚")
+        st.warning("ÓÃ»§ÃûÒÑ´æÔÚ£¬Çë¸ü»»Ò»¸öĞÂµÄÓÃ»§Ãû¡£")
     else:
         c.execute('INSERT INTO userstable(username,password) VALUES(%s,%s)',(username,password))
         con.commit()
-        st.success("æ­å–œï¼Œæ‚¨å·²æˆåŠŸæ³¨å†Œã€‚")
-        st.info("è¯·åœ¨å·¦ä¾§é€‰æ‹©â€œç™»å½•â€é€‰é¡¹è¿›è¡Œç™»å½•ã€‚")
+        st.success("¹§Ï²£¬ÄúÒÑ³É¹¦×¢²á¡£")
+        st.info("ÇëÔÚ×ó²àÑ¡Ôñ¡°µÇÂ¼¡±Ñ¡Ïî½øĞĞµÇÂ¼¡£")
 
 def login_user(username,password):
     if c.execute('SELECT username FROM userstable WHERE username = %s',(username)):
@@ -38,7 +40,7 @@ def login_user(username,password):
         data=c.fetchall()
         return data
     else:
-        st.warning("ç”¨æˆ·åä¸å­˜åœ¨ï¼Œè¯·å…ˆé€‰æ‹©æ³¨å†ŒæŒ‰é’®å®Œæˆæ³¨å†Œã€‚")
+        st.warning("ÓÃ»§Ãû²»´æÔÚ£¬ÇëÏÈÑ¡Ôñ×¢²á°´Å¥Íê³É×¢²á¡£")
 
 def view_all_users():
     c.execute('SELECT * FROM userstable')
@@ -62,61 +64,68 @@ tokenizer, model = get_model(device, "vocab/vocab.txt", "output_dir/checkpoint-1
 def writer():
     st.markdown(
         """
-        ## åŠŸèƒ½1ï¼šè¾“å…¥æ–‡ç« ç”Ÿæˆæ ‡é¢˜
+        ## ¹¦ÄÜ1£ºÊäÈëÎÄÕÂÉú³É±êÌâ
         """
     )
-    st.sidebar.subheader("æ ‡é¢˜ç”Ÿæˆé…ç½®å‚æ•°")
+    st.sidebar.subheader("±êÌâÉú³ÉÅäÖÃ²ÎÊı")
     # batch_size = st.sidebar.slider("batch_size", min_value=0, max_value=10, value=3)
-    generate_max_len = st.sidebar.number_input("generate_max_len", min_value=0, max_value=64, value=32, step=1)
-    repetition_penalty = st.sidebar.number_input("repetition_penalty", min_value=0.0, max_value=10.0, value=1.2,
-                                                 step=0.1)
-    top_k = st.sidebar.slider("top_k", min_value=0, max_value=10, value=3, step=1)
-    top_p = st.sidebar.number_input("top_p", min_value=0.0, max_value=1.0, value=0.95, step=0.01)
+    generate_max_len = st.sidebar.number_input("generate_max_len", min_value=0, max_value=64, value=16, step=1)
+    # repetition_penalty = st.sidebar.number_input("repetition_penalty", min_value=0.0, max_value=10.0, value=1.2,
+    #                                              step=0.1)
+    # top_k = st.sidebar.slider("top_k", min_value=0, max_value=10, value=3, step=1)
+    # top_p = st.sidebar.number_input("top_p", min_value=0.0, max_value=1.0, value=0.95, step=0.01)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', default=1, type=int, help='ç”Ÿæˆæ ‡é¢˜çš„ä¸ªæ•°')
-    parser.add_argument('--generate_max_len', default=generate_max_len, type=int, help='ç”Ÿæˆæ ‡é¢˜çš„æœ€å¤§é•¿åº¦')
-    parser.add_argument('--repetition_penalty', default=repetition_penalty, type=float, help='é‡å¤å¤„ç½šç‡')
-    parser.add_argument('--top_k', default=top_k, type=float, help='è§£ç æ—¶ä¿ç•™æ¦‚ç‡æœ€é«˜çš„å¤šå°‘ä¸ªæ ‡è®°')
-    parser.add_argument('--top_p', default=top_p, type=float, help='è§£ç æ—¶ä¿ç•™æ¦‚ç‡ç´¯åŠ å¤§äºå¤šå°‘çš„æ ‡è®°')
-    parser.add_argument('--max_len', type=int, default=512, help='è¾“å…¥æ¨¡å‹çš„æœ€å¤§é•¿åº¦ï¼Œè¦æ¯”configä¸­n_ctxå°')
+    parser.add_argument('--batch_size', default=1, type=int, help='Éú³É±êÌâµÄ¸öÊı')
+    parser.add_argument('--generate_max_len', default=generate_max_len, type=int, help='Éú³É±êÌâµÄ×î´ó³¤¶È')
+    parser.add_argument('--repetition_penalty', default=1.2, type=float, help='ÖØ¸´´¦·£ÂÊ')
+    parser.add_argument('--top_k', default=3, type=float, help='½âÂëÊ±±£Áô¸ÅÂÊ×î¸ßµÄ¶àÉÙ¸ö±ê¼Ç')
+    parser.add_argument('--top_p', default=1, type=float, help='½âÂëÊ±±£Áô¸ÅÂÊÀÛ¼Ó´óÓÚ¶àÉÙµÄ±ê¼Ç')
+    parser.add_argument('--max_len', type=int, default=512, help='ÊäÈëÄ£ĞÍµÄ×î´ó³¤¶È£¬Òª±ÈconfigÖĞn_ctxĞ¡')
     args = parser.parse_args()
 
-    content = st.text_area("è¾“å…¥æ–‡ç« æ­£æ–‡", max_chars=512)
-    if st.button("ä¸€é”®ç”Ÿæˆæ ‡é¢˜"):
+    content = st.text_area("ÊäÈëÎÄÕÂÕıÎÄ", max_chars=10000)
+    if st.button("Ò»¼üÉú³É±êÌâ"):
         start_message = st.empty()
-        start_message.write("æ­£åœ¨ç”Ÿæˆï¼Œè¯·ç­‰å¾…...")
+        start_message.write("ÕıÔÚÉú³É£¬ÇëµÈ´ı...")
+        if(len(content)>200):
+            content=content[0:200]
         start_time = time.time()
         titles = predict_one_sample(model, tokenizer, device, args, content)
         end_time = time.time()
-        start_message.write("ç”Ÿæˆå®Œæˆï¼Œè€—æ—¶{}s".format(end_time - start_time))
+        start_message.write("Éú³ÉÍê³É£¬ºÄÊ±{}s".format(end_time - start_time))
         for i, title in enumerate(titles):
-            st.text_input("ç”Ÿæˆçš„æ ‡é¢˜ä¸º", title)
-    # st.markdown(
-    #     """
-    #     ## åŠŸèƒ½2ï¼šè¾“å…¥æ–‡ç« ç”Ÿæˆæ‘˜è¦
-    #     """
-    # )
-    #
-    # content1 = st.text_area("è¾“å…¥æ–‡ç« æ­£æ–‡", max_chars=511)
-    # if st.button("ä¸€é”®ç”Ÿæˆæ‘˜è¦"):
-    #     start_message = st.empty()
-    #     start_message.write("æ­£åœ¨ç”Ÿæˆï¼Œè¯·ç­‰å¾…...")
-    #     start_time = time.time()
-    #     titles1 = predict_one_sample(model, tokenizer, device, args, content1)
-    #     end_time = time.time()
-    #     start_message.write("ç”Ÿæˆå®Œæˆï¼Œè€—æ—¶{}s".format(end_time - start_time))
-    #     for j, title in enumerate(titles1):
-    #         st.text_input("ç¬¬{}ä¸ªç»“æœ".format(j + 1), title)
+            st.text_input("Éú³ÉµÄ±êÌâÎª", title)
+    st.markdown(
+        """
+        ## ¹¦ÄÜ2£ºÊäÈëÎÄÕÂÉú³ÉÕªÒª
+        """
+    )
+
+    content1 = st.text_area("ÊäÈëÎÄÕÂÕıÎÄ", max_chars=9999)
+    if st.button("Ò»¼üÉú³ÉÕªÒª"):
+        start_message = st.empty()
+        start_message.write("ÕıÔÚÉú³É£¬ÇëµÈ´ı...")
+        if (len(content1) > 250):
+            content1 = content1[0:250]
+        start_time = time.time()
+        # titles1 = predict_one_sample(model, tokenizer, device, args1, content1)
+        tr4s = TextRank4Sentence()
+        # Ó¢ÎÄµ¥´ÊĞ¡Ğ´£¬½øĞĞ´ÊĞÔ¹ıÂË²¢ÌŞ³ıÍ£ÓÃ´Ê
+        tr4s.analyze(text=content1, lower=True, source='all_filters')
+        end_time = time.time()
+        start_message.write("Éú³ÉÍê³É£¬ºÄÊ±{}s".format(end_time - start_time))
+        for item in tr4s.get_key_sentences(num=1):
+            st.text_input("Éú³ÉµÄÕªÒªÎª",item.sentence)
 
 
 def main():
-    menu = ["é¦–é¡µ","ç™»å½•","æ³¨å†Œ", "æ³¨é”€"]
+    menu = ["Ê×Ò³","µÇÂ¼","×¢²á", "×¢Ïú"]
 
     if 'count' not in st.session_state:
         st.session_state.count = 0
 
-    choice = st.sidebar.selectbox("é€‰é¡¹èœå•",menu)
+    choice = st.sidebar.selectbox("Ñ¡Ïî²Ëµ¥",menu)
     st.sidebar.markdown(
     """
     <style>
@@ -131,65 +140,65 @@ def main():
     """,
     unsafe_allow_html=True,)
 
-    if choice =="é¦–é¡µ":
-        st.header("é¦–é¡µ")
+    if choice =="Ê×Ò³":
+        st.header("Ê×Ò³")
         c1, c2 = st.columns(2)
         with c1:
             st.markdown(
                 """
-            ### é¡¹ç›®ç®€ä»‹ 
-            æœ¬é¡¹ç›®æ¥è‡ª:[2022å¹´ä¸­å›½å¤§å­¦ç”Ÿè½¯ä»¶è®¾è®¡å¤§èµ› A9èµ›é¢˜â€”æ™ºèƒ½åˆ›ä½œå¹³å°](http://www.cnsoftbei.com/plus/view.php?aid=729)
+            ### ÏîÄ¿¼ò½é 
+            ±¾ÏîÄ¿À´×Ô:[2022ÄêÖĞ¹ú´óÑ§ÉúÈí¼şÉè¼Æ´óÈü A9ÈüÌâ¡ªÖÇÄÜ´´×÷Æ½Ì¨](http://www.cnsoftbei.com/plus/view.php?aid=729)
             
-            é¡¹ç›®æ¦‚è¿°:åŸºäºGPT-2å’ŒSteamlitçš„æ™ºèƒ½åˆ›ä½œå¹³å°
+            ÏîÄ¿¸ÅÊö:»ùÓÚLongformerºÍSteamlitµÄÖÇÄÜ´´×÷Æ½Ì¨
             """
             )
             # st.image()
         with c2:
             st.markdown(
                 """
-            ### å›¢é˜Ÿç®€ä»‹ 
+            ### ÍÅ¶Ó¼ò½é 
 
-            å›¢é˜Ÿåç§°:æˆ‘çˆ±NLP
+            ÍÅ¶ÓÃû³Æ:ÎÒ°®NLP
 
-            å­¦æ ¡:[ä¸œåŒ—æ—ä¸šå¤§å­¦](https://www.nefu.edu.cn/)
+            Ñ§Ğ£:[¶«±±ÁÖÒµ´óÑ§](https://www.nefu.edu.cn/)
 
-            é¡¹ç›®æˆå‘˜:æèˆª å­£å­æ‰¬ å­™æ³½å® æå§—çŠ
+            ÏîÄ¿³ÉÔ±:Àîº½ ¼¾×ÓÑï 
             """
             )
             # st.image()
 
-    elif choice =="ç™»å½•":
+    elif choice =="µÇÂ¼":
         placeholder = st.sidebar.empty()
         with placeholder.container():
-            st.subheader("ç™»å½•åŒºåŸŸ")
-            username = st.text_input("ç”¨æˆ·å")
-            password = st.text_input("å¯†ç ",type = "password")
-            denglu = st.checkbox('ç™»å½•')
+            st.subheader("µÇÂ¼ÇøÓò")
+            username = st.text_input("ÓÃ»§Ãû")
+            password = st.text_input("ÃÜÂë",type = "password")
+            denglu = st.checkbox('µÇÂ¼')
         if denglu:
                 logged_user = login_user(username,password)
                 if logged_user:
                     st.session_state.count += 1
                     if st.session_state.count >= 1:
                         placeholder.empty()
-                        st.sidebar.success("æ‚¨å·²ç™»å½•æˆåŠŸï¼Œæ‚¨çš„ç”¨æˆ·åæ˜¯ {}".format(username))
+                        st.sidebar.success("ÄúÒÑµÇÂ¼³É¹¦£¬ÄúµÄÓÃ»§ÃûÊÇ {}".format(username))
                         writer()
 
                 else:
-                    st.sidebar.warning("ç”¨æˆ·åæˆ–è€…å¯†ç ä¸æ­£ç¡®ï¼Œè¯·æ£€æŸ¥åé‡è¯•ã€‚")
+                    st.sidebar.warning("ÓÃ»§Ãû»òÕßÃÜÂë²»ÕıÈ·£¬Çë¼ì²éºóÖØÊÔ¡£")
 
-    elif choice =="æ³¨å†Œ":
-        st.subheader("æ³¨å†Œ")
-        new_user = st.sidebar.text_input("ç”¨æˆ·å")
-        new_password = st.sidebar.text_input("å¯†ç ",type = "password")
+    elif choice =="×¢²á":
+        st.subheader("×¢²á")
+        new_user = st.sidebar.text_input("ÓÃ»§Ãû")
+        new_password = st.sidebar.text_input("ÃÜÂë",type = "password")
 
-        if st.sidebar.button("æ³¨å†Œ"):
+        if st.sidebar.button("×¢²á"):
             create_usertable()
             add_userdata(new_user,new_password)
 
-    elif choice =="æ³¨é”€":
+    elif choice =="×¢Ïú":
         st.session_state.count = 0
         if st.session_state.count == 0:
-            st.info("æ‚¨å·²æˆåŠŸæ³¨é”€ï¼Œå¦‚æœéœ€è¦ï¼Œè¯·é€‰æ‹©å·¦ä¾§çš„ç™»å½•æŒ‰é’®ç»§ç»­ç™»å½•ã€‚")
+            st.info("ÄúÒÑ³É¹¦×¢Ïú£¬Èç¹ûĞèÒª£¬ÇëÑ¡Ôñ×ó²àµÄµÇÂ¼°´Å¥¼ÌĞøµÇÂ¼¡£")
 
 
 
